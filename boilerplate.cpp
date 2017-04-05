@@ -224,17 +224,18 @@ public:
 
             if (letter == 32) continue;
 
-            float startPos[2];
+            float startPos[2] = {};
 
-            float previousEndPoint[2];
+            float previousEndPoint[2] = {};
 
             string letterPath = path + std::to_string(letter);
 
-            FILE * file = fopen(letterPath,"r");
+            FILE * file = fopen(letterPath.c_str(),"r");
 
             bool openFile = true;
             if (file == NULL) {
-                printf("Impossible to open the file, " + letterPath + "\n");
+                printf("Impossible to open the file\n");
+                printf(letterPath.c_str());
                 openFile = false;
             }
 
@@ -247,17 +248,19 @@ public:
                 }
                 if (strcmp(lineType, "M") == 0) {
                     float coords[2];
-                    fscanf(file, "%f %f\n", coords[0], coords[1]);
-                    startPos = coords;
-                    previousEndPoint = coords;
+                    fscanf(file, "%f %f\n", &coords[0], &coords[1]);
+                    startPos[0] = coords[0];
+                    startPos[1] = coords[1];
+                    previousEndPoint[0] = coords[0];
+                    previousEndPoint[1] = coords[1];
                 } else if (strcmp(lineType, "C") == 0) {
                     float point1[2];
                     float point2[2];
                     float point3[2];
                     fscanf(file, "%f %f %f %f %f %f",
-                        point1[0], point1[1],
-                        point2[0], point2[1],
-                        point3[0], point3[1]);
+                        &point1[0], &point1[1],
+                        &point2[0], &point2[1],
+                        &point3[0], &point3[1]);
 
 
                     points.push_back(previousEndPoint[0]);
@@ -269,15 +272,18 @@ public:
                     points.push_back(point3[0]);
                     points.push_back(point3[1]);
 
-                    previousEndPoint = point3;
+                    previousEndPoint[0] = point3[0];
+                    previousEndPoint[1] = point3[1];
                 } else if (strcmp(lineType, "L") == 0) {
-                    float point0[2] = previousEndPoint;
+                    float point0[2] = {};
+                    point0[0] = previousEndPoint[0];
+                    point0[1] = previousEndPoint[1];
                     float point1[2];
 
-                    fscanf(file, "%f %f", point1[0], point1[1]);
+                    fscanf(file, "%f %f", &point1[0], &point1[1]);
 
-                    float middle1[2];
-                    float middle2[2];
+                    float middle1[2] = {};
+                    float middle2[2] = {};
 
                     middle1[0] = point0[0] * 0.75 + point1[0] * 0.25;
                     middle1[1] = point0[1] * 0.75 + point1[1] * 0.25;
@@ -294,11 +300,15 @@ public:
                     points.push_back(point1[0]);
                     points.push_back(point1[1]);
                 } else if (strcmp(lineType, "Z") == 0) {
-                    float point0[2] = previousEndPoint;
-                    float point1[2] = startPos;
+                    float point0[2] = {};
+                    point0[0] = previousEndPoint[0];
+                    point0[1] = previousEndPoint[1];
+                    float point1[2] = {};
+                    point1[0] = startPos[0];
+                    point1[1] = startPos[1];
 
-                    float middle1[2];
-                    float middle2[2];
+                    float middle1[2] = {};
+                    float middle2[2] = {};
 
                     middle1[0] = point0[0] * 0.75 + point1[0] * 0.25;
                     middle1[1] = point0[1] * 0.75 + point1[1] * 0.25;
@@ -322,6 +332,8 @@ public:
         VertexArray va(points.size());
 
         va.addBuffer("v", 0, points);
+
+        return va;
 
     }
 };
@@ -386,7 +398,7 @@ int main(int argc, char *argv[])
   //     1.0,-1.0
   // });
 
-    Loader l("Hello");
+    Loader l("Q");
     VertexArray va = l.load();
 
 

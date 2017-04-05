@@ -1,0 +1,2 @@
+all:
+	g++ -std=c++14 boilerplate.cpp -o boilerplate -framework OpenGL `pkg-config --static --libs glfw3`
