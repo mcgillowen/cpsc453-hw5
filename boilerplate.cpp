@@ -14,6 +14,9 @@
 #include <sstream>
 #include <vector>
 #include <map>
+#include <cstdio>
+#include <cstring>
+
 
 #define GLFW_INCLUDE_GLCOREARB
 #define GL_GLEXT_PROTOTYPES
@@ -24,13 +27,15 @@ using std::vector;
 using std::cout;
 using std::cerr;
 using std::endl;
+using std::strcmp;
+using std::fscanf;
 
 class Program {
   GLuint vertex_shader;
   GLuint tess_control_shader;
   GLuint tess_evaluation_shader;
   GLuint fragment_shader;
-  
+
 public:
   GLuint id;
   Program() {
@@ -121,7 +126,7 @@ public:
       int size = 0;
       glBindBuffer(GL_ARRAY_BUFFER, ent.second);
       glGetBufferParameteriv(GL_ARRAY_BUFFER, GL_BUFFER_SIZE, &size);
-      
+
       glBindBuffer(GL_COPY_READ_BUFFER, temp_buffers[i]);
       glBufferData(GL_COPY_READ_BUFFER, size, NULL, GL_STATIC_COPY);
 
@@ -131,14 +136,14 @@ public:
 
     // Copy those temporary buffer objects into our VBOs
 
-    i = 0; 
+    i = 0;
     for(auto &ent: v.buffers) {
       GLuint buffer_id;
       int size = 0;
       int index = indices[ent.first];
 
       glGenBuffers(1, &buffer_id);
-      
+
       glBindVertexArray(this->id);
       glBindBuffer(GL_ARRAY_BUFFER, buffer_id);
       glBindBuffer(GL_COPY_READ_BUFFER, temp_buffers[i]);
@@ -183,7 +188,7 @@ public:
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
   }
-  
+
   void updateBuffer(string name, vector<float> buffer) {
     glBindBuffer(GL_ARRAY_BUFFER, buffers[name]);
     glBufferData(GL_ARRAY_BUFFER, buffer.size()*sizeof(float), buffer.data(), GL_STATIC_DRAW);
@@ -198,6 +203,129 @@ public:
   }
 };
 
+class Loader {
+    string text;
+
+public:
+    Loader(string textToDisplay){
+        text = textToDisplay;
+    }
+
+    VertexArray load() {
+
+        string path = "cmuntt/gly_";
+
+        vector<float> points;
+
+        int pos = 0;
+        int length = text.length();
+        for (; pos < length; pos++) {
+            int letter = text[pos];
+
+            if (letter == 32) continue;
+
+            float startPos[2];
+
+            float previousEndPoint[2];
+
+            string letterPath = path + std::to_string(letter);
+
+            FILE * file = fopen(letterPath,"r");
+
+            bool openFile = true;
+            if (file == NULL) {
+                printf("Impossible to open the file, " + letterPath + "\n");
+                openFile = false;
+            }
+
+            while (openFile) {
+                char lineType[2];
+                int res = fscanf(file, "%s", lineType);
+
+                if (res == EOF) {
+                    break;
+                }
+                if (strcmp(lineType, "M") == 0) {
+                    float coords[2];
+                    fscanf(file, "%f %f\n", coords[0], coords[1]);
+                    startPos = coords;
+                    previousEndPoint = coords;
+                } else if (strcmp(lineType, "C") == 0) {
+                    float point1[2];
+                    float point2[2];
+                    float point3[2];
+                    fscanf(file, "%f %f %f %f %f %f",
+                        point1[0], point1[1],
+                        point2[0], point2[1],
+                        point3[0], point3[1]);
+
+
+                    points.push_back(previousEndPoint[0]);
+                    points.push_back(previousEndPoint[1]);
+                    points.push_back(point1[0]);
+                    points.push_back(point1[1]);
+                    points.push_back(point2[0]);
+                    points.push_back(point2[1]);
+                    points.push_back(point3[0]);
+                    points.push_back(point3[1]);
+
+                    previousEndPoint = point3;
+                } else if (strcmp(lineType, "L") == 0) {
+                    float point0[2] = previousEndPoint;
+                    float point1[2];
+
+                    fscanf(file, "%f %f", point1[0], point1[1]);
+
+                    float middle1[2];
+                    float middle2[2];
+
+                    middle1[0] = point0[0] * 0.75 + point1[0] * 0.25;
+                    middle1[1] = point0[1] * 0.75 + point1[1] * 0.25;
+
+                    middle2[0] = point0[0] * 0.25 + point1[0] * 0.75;
+                    middle2[1] = point0[1] * 0.25 + point1[1] * 0.75;
+
+                    points.push_back(point0[0]);
+                    points.push_back(point0[1]);
+                    points.push_back(middle1[0]);
+                    points.push_back(middle1[1]);
+                    points.push_back(middle2[0]);
+                    points.push_back(middle2[1]);
+                    points.push_back(point1[0]);
+                    points.push_back(point1[1]);
+                } else if (strcmp(lineType, "Z") == 0) {
+                    float point0[2] = previousEndPoint;
+                    float point1[2] = startPos;
+
+                    float middle1[2];
+                    float middle2[2];
+
+                    middle1[0] = point0[0] * 0.75 + point1[0] * 0.25;
+                    middle1[1] = point0[1] * 0.75 + point1[1] * 0.25;
+
+                    middle2[0] = point0[0] * 0.25 + point1[0] * 0.75;
+                    middle2[1] = point0[1] * 0.25 + point1[1] * 0.75;
+
+                    points.push_back(point0[0]);
+                    points.push_back(point0[1]);
+                    points.push_back(middle1[0]);
+                    points.push_back(middle1[1]);
+                    points.push_back(middle2[0]);
+                    points.push_back(middle2[1]);
+                    points.push_back(point1[0]);
+                    points.push_back(point1[1]);
+                }
+            }
+
+        }
+
+        VertexArray va(points.size());
+
+        va.addBuffer("v", 0, points);
+
+    }
+};
+
 void render(Program &program, VertexArray &va)
 {
 	// clear screen to a dark grey colour
@@ -209,14 +337,14 @@ void render(Program &program, VertexArray &va)
 	glEnable (GL_BLEND);
 	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glHint (GL_LINE_SMOOTH_HINT, GL_DONT_CARE);
-  
+
 
 	glUseProgram(program.id);
 	glBindVertexArray(va.id);
 
   glPatchParameteri( GL_PATCH_VERTICES, 4 );
 	glDrawArrays( GL_PATCHES, 0, va.count );
-  
+
 	glBindVertexArray(0);
 	glUseProgram(0);
 
@@ -250,13 +378,18 @@ int main(int argc, char *argv[])
 	glfwMakeContextCurrent(window);
 
   Program p("vertex.glsl", "tessControl.glsl", "tessEvaluation.glsl", "fragment.glsl");
-  VertexArray va(4);
-  va.addBuffer("v", 0, vector<float>{
-    -1.0,-1.0,
-    -1.0,1.0,
-      1.0,1.0,
-      1.0,-1.0
-  });
+  //VertexArray va(4);
+  // va.addBuffer("v", 0, vector<float>{
+  //   -1.0,-1.0,
+  //   -1.0,1.0,
+  //     1.0,1.0,
+  //     1.0,-1.0
+  // });
+
+    Loader l("Hello");
+    VertexArray va = l.load();
+
+
 
 	// run an event-triggered main loop
 	while (!glfwWindowShouldClose(window))
