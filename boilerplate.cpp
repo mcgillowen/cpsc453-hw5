@@ -232,15 +232,20 @@ public:
     float translateDistance = (2.0f) / length;
     float initialTranslate = -1.0f/scalingFactor;
 
+    float spacing = 0.0f;
+
     FILE * file;
 
     for (; pos < length; pos++) {
       int letter = text[pos];
 
+      float max = 0.0f;
+      float min = 0.0f;
+
       //cout << letter << endl;
 
       if (letter == 32) {
-        initialTranslate = initialTranslate + translateDistance;
+        initialTranslate = initialTranslate + spacing;
         continue;
       }
 
@@ -272,6 +277,9 @@ public:
           float coords[2];
           fscanf(file, "%f %f\n", &coords[0], &coords[1]);
 
+          if (max < coords[0]) max = coords[0];
+          if (min > coords[0]) min = coords[0];
+
           coords[0] = coords[0] + initialTranslate + translate;
 
           coords[0] = coords[0] * scalingFactor;
@@ -294,6 +302,15 @@ public:
               &point1[0], &point1[1],
               &point2[0], &point2[1],
               &point3[0], &point3[1]);
+
+          if (max < point1[0]) max = point1[0];
+          if (min > point1[0]) min = point1[0];
+
+          if (max < point2[0]) max = point2[0];
+          if (min > point2[0]) min = point2[0];
+
+          if (max < point2[0]) max = point2[0];
+          if (min > point2[0]) min = point2[0];
 
           point1[0] = point1[0] + initialTranslate + translate;
           point2[0] = point2[0] + initialTranslate + translate;
@@ -338,6 +355,9 @@ public:
           float point1[2];
 
           fscanf(file, "%f %f", &point1[0], &point1[1]);
+
+          if (max < point1[0]) max = point1[0];
+          if (min > point1[0]) min = point1[0];
 
           float middle1[2] = {};
           float middle2[2] = {};
@@ -414,7 +434,15 @@ public:
       }
 
       fclose(file);
-      initialTranslate = initialTranslate + translateDistance;
+
+      if (max < 0) max = -max;
+      if (min < 0) min = -min;
+
+      float width = max + min;
+
+      spacing = width + width / length;
+
+      initialTranslate = initialTranslate + spacing;
     }
 
     VertexArray va(points.size() / 2);
@@ -465,7 +493,6 @@ float scalingFactor = 3.0f;
 float translationFactor = 0.0f;
 
 
-
 int main(int argc, char *argv[])
 {
 	// initialize the GLFW windowing system
@@ -502,7 +529,12 @@ int main(int argc, char *argv[])
   //     1.0,-1.0
   // });
 
+
     Loader l("The quick brown fox jumps over the lazy dog");
+    if (argc == 2) {
+      l = Loader(argv[1]);
+    }
+
     //Loader l("Hello");
 
   glfwSetKeyCallback(window,
@@ -510,16 +542,16 @@ int main(int argc, char *argv[])
 
         //Translation controls
         if (key == GLFW_KEY_UP && (action == GLFW_PRESS || action == GLFW_REPEAT)) {
-          scalingFactor = scalingFactor + 0.01f;
+          scalingFactor = scalingFactor + 0.05f;
         }
         if (key == GLFW_KEY_DOWN && (action == GLFW_PRESS || action == GLFW_REPEAT)) {
-          scalingFactor = scalingFactor - 0.01f;
+          scalingFactor = scalingFactor - 0.05f;
         }
         if (key == GLFW_KEY_LEFT && (action == GLFW_PRESS || action == GLFW_REPEAT)) {
-          translationFactor = translationFactor - 0.01f;
+          translationFactor = translationFactor - 0.05f;
         }
         if (key == GLFW_KEY_RIGHT && (action == GLFW_PRESS || action == GLFW_REPEAT)) {
-          translationFactor = translationFactor + 0.01f;
+          translationFactor = translationFactor + 0.05f;
         }
     });
 
