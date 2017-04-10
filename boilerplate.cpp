@@ -22,6 +22,9 @@
 #define GL_GLEXT_PROTOTYPES
 #include <GLFW/glfw3.h>
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
 using std::string;
 using std::vector;
 using std::cout;
@@ -180,7 +183,7 @@ public:
     buffers[name]=buffer_id;
     indices[name]=index;
 
-    int components=buffer.size()/count;
+    int components=2;
     glVertexAttribPointer(index, components, GL_FLOAT, GL_FALSE, 0, 0);
     glEnableVertexAttribArray(index);
 
@@ -204,138 +207,222 @@ public:
 };
 
 class Loader {
-    string text;
+  string text;
+  float scalingFactor;
+  int length;
 
 public:
-    Loader(string textToDisplay){
-        text = textToDisplay;
-    }
+  Loader(string textToDisplay){
+      text = textToDisplay;
+      length = text.length();
+  }
 
-    VertexArray load() {
+  VertexArray load(float scale, float translate) {
 
-        string path = "cmuntt/gly_";
+    string path = "cmuntt/gly_";
 
-        vector<float> points;
+    vector<float> points;
 
-        int pos = 0;
-        int length = text.length();
-        for (; pos < length; pos++) {
-            int letter = text[pos];
+    int pos = 0;
 
-            if (letter == 32) continue;
+    float scalingFactor = (scale / length);
+    //cout << scale << endl;
+    //float translateDistance = (1.8f / length) + 0.05f;
+    //float translateDistance = (2.0f / length) * scale;
+    float translateDistance = (2.0f) / length;
+    float initialTranslate = -1.0f/scalingFactor;
 
-            float startPos[2] = {};
+    FILE * file;
 
-            float previousEndPoint[2] = {};
+    for (; pos < length; pos++) {
+      int letter = text[pos];
 
-            string letterPath = path + std::to_string(letter);
+      //cout << letter << endl;
 
-            FILE * file = fopen(letterPath.c_str(),"r");
+      if (letter == 32) {
+        initialTranslate = initialTranslate + translateDistance;
+        continue;
+      }
 
-            bool openFile = true;
-            if (file == NULL) {
-                printf("Impossible to open the file\n");
-                printf(letterPath.c_str());
-                openFile = false;
-            }
+      float startPos[2] = {};
 
-            while (openFile) {
-                char lineType[2];
-                int res = fscanf(file, "%s", lineType);
+      float previousEndPoint[2] = {};
 
-                if (res == EOF) {
-                    break;
-                }
-                if (strcmp(lineType, "M") == 0) {
-                    float coords[2];
-                    fscanf(file, "%f %f\n", &coords[0], &coords[1]);
-                    startPos[0] = coords[0];
-                    startPos[1] = coords[1];
-                    previousEndPoint[0] = coords[0];
-                    previousEndPoint[1] = coords[1];
-                } else if (strcmp(lineType, "C") == 0) {
-                    float point1[2];
-                    float point2[2];
-                    float point3[2];
-                    fscanf(file, "%f %f %f %f %f %f",
-                        &point1[0], &point1[1],
-                        &point2[0], &point2[1],
-                        &point3[0], &point3[1]);
+      string letterPath = path + std::to_string(letter);
 
+      //cout << letterPath << endl;
 
-                    points.push_back(previousEndPoint[0]);
-                    points.push_back(previousEndPoint[1]);
-                    points.push_back(point1[0]);
-                    points.push_back(point1[1]);
-                    points.push_back(point2[0]);
-                    points.push_back(point2[1]);
-                    points.push_back(point3[0]);
-                    points.push_back(point3[1]);
+      file = fopen(letterPath.c_str(),"r");
 
-                    previousEndPoint[0] = point3[0];
-                    previousEndPoint[1] = point3[1];
-                } else if (strcmp(lineType, "L") == 0) {
-                    float point0[2] = {};
-                    point0[0] = previousEndPoint[0];
-                    point0[1] = previousEndPoint[1];
-                    float point1[2];
+      bool openFile = true;
+      if (file == NULL) {
+          cout << "Impossible to open the file, " << letterPath << endl;
+          cout << endl;
+          openFile = false;
+      }
 
-                    fscanf(file, "%f %f", &point1[0], &point1[1]);
+      while (openFile) {
+        char lineType[2];
+        int res = fscanf(file, "%s", lineType);
 
-                    float middle1[2] = {};
-                    float middle2[2] = {};
-
-                    middle1[0] = point0[0] * 0.75 + point1[0] * 0.25;
-                    middle1[1] = point0[1] * 0.75 + point1[1] * 0.25;
-
-                    middle2[0] = point0[0] * 0.25 + point1[0] * 0.75;
-                    middle2[1] = point0[1] * 0.25 + point1[1] * 0.75;
-
-                    points.push_back(point0[0]);
-                    points.push_back(point0[1]);
-                    points.push_back(middle1[0]);
-                    points.push_back(middle1[1]);
-                    points.push_back(middle2[0]);
-                    points.push_back(middle2[1]);
-                    points.push_back(point1[0]);
-                    points.push_back(point1[1]);
-                } else if (strcmp(lineType, "Z") == 0) {
-                    float point0[2] = {};
-                    point0[0] = previousEndPoint[0];
-                    point0[1] = previousEndPoint[1];
-                    float point1[2] = {};
-                    point1[0] = startPos[0];
-                    point1[1] = startPos[1];
-
-                    float middle1[2] = {};
-                    float middle2[2] = {};
-
-                    middle1[0] = point0[0] * 0.75 + point1[0] * 0.25;
-                    middle1[1] = point0[1] * 0.75 + point1[1] * 0.25;
-
-                    middle2[0] = point0[0] * 0.25 + point1[0] * 0.75;
-                    middle2[1] = point0[1] * 0.25 + point1[1] * 0.75;
-
-                    points.push_back(point0[0]);
-                    points.push_back(point0[1]);
-                    points.push_back(middle1[0]);
-                    points.push_back(middle1[1]);
-                    points.push_back(middle2[0]);
-                    points.push_back(middle2[1]);
-                    points.push_back(point1[0]);
-                    points.push_back(point1[1]);
-                }
-            }
-
+        if (res == EOF) {
+          break;
         }
+        if (strcmp(lineType, "M") == 0) {
+          float coords[2];
+          fscanf(file, "%f %f\n", &coords[0], &coords[1]);
 
-        VertexArray va(points.size());
+          coords[0] = coords[0] + initialTranslate + translate;
 
-        va.addBuffer("v", 0, points);
+          coords[0] = coords[0] * scalingFactor;
+          coords[1] = coords[1] * scalingFactor;
 
-        return va;
+          // coords[1] = coords[1] + initialTranslate;
+          startPos[0] = coords[0];
+          startPos[1] = coords[1];
+          previousEndPoint[0] = coords[0];
+          previousEndPoint[1] = coords[1];
 
+          //cout << "M" << endl;
+          //cout << coords[0] << ", " << coords[1] << endl;
+          //cout << endl;
+        } else if (strcmp(lineType, "C") == 0) {
+          float point1[2];
+          float point2[2];
+          float point3[2];
+          fscanf(file, "%f %f %f %f %f %f",
+              &point1[0], &point1[1],
+              &point2[0], &point2[1],
+              &point3[0], &point3[1]);
+
+          point1[0] = point1[0] + initialTranslate + translate;
+          point2[0] = point2[0] + initialTranslate + translate;
+          point3[0] = point3[0] + initialTranslate + translate;
+
+          point1[0] = point1[0] * scalingFactor;
+          point2[0] = point2[0] * scalingFactor;
+          point3[0] = point3[0] * scalingFactor;
+
+          point1[1] = point1[1] * scalingFactor;
+          point2[1] = point2[1] * scalingFactor;
+          point3[1] = point3[1] * scalingFactor;
+
+          // point1[1] = point1[1] + initialTranslate;
+          // point2[1] = point2[1] + initialTranslate;
+          // point3[1] = point3[1] + initialTranslate;
+
+          points.push_back(previousEndPoint[0]);
+          points.push_back(previousEndPoint[1]);
+          points.push_back(point1[0]);
+          points.push_back(point1[1]);
+          points.push_back(point2[0]);
+          points.push_back(point2[1]);
+          points.push_back(point3[0]);
+          points.push_back(point3[1]);
+
+          //cout << "C" << endl;
+
+          //cout << previousEndPoint[0] << ", " << previousEndPoint[1] << endl;
+          //cout << point1[0] << ", " << point1[1] << endl;
+          //cout << point2[0] << ", " << point2[1] << endl;
+          //cout << point3[0] << ", " << point3[1] << endl;
+
+          //cout << endl;
+
+          previousEndPoint[0] = point3[0];
+          previousEndPoint[1] = point3[1];
+        } else if (strcmp(lineType, "L") == 0) {
+          float point0[2] = {};
+          point0[0] = previousEndPoint[0];
+          point0[1] = previousEndPoint[1];
+          float point1[2];
+
+          fscanf(file, "%f %f", &point1[0], &point1[1]);
+
+          float middle1[2] = {};
+          float middle2[2] = {};
+
+          point1[0] = point1[0] + initialTranslate + translate;
+
+          point1[0] = point1[0] * scalingFactor;
+          point1[1] = point1[1] * scalingFactor;
+
+          //point1[1] = point1[1] + initialTranslate;
+
+          middle1[0] = point0[0] * 0.75 + point1[0] * 0.25;
+          middle1[1] = point0[1] * 0.75 + point1[1] * 0.25;
+
+          middle2[0] = point0[0] * 0.25 + point1[0] * 0.75;
+          middle2[1] = point0[1] * 0.25 + point1[1] * 0.75;
+
+          // middle1[1] = middle1[1] + initialTranslate;
+          // middle2[1] = middle2[1] + initialTranslate;
+          // point1[1] = point1[1] + initialTranslate;
+
+          points.push_back(point0[0]);
+          points.push_back(point0[1]);
+          points.push_back(middle1[0]);
+          points.push_back(middle1[1]);
+          points.push_back(middle2[0]);
+          points.push_back(middle2[1]);
+          points.push_back(point1[0]);
+          points.push_back(point1[1]);
+
+          previousEndPoint[0] = point1[0];
+          previousEndPoint[1] = point1[1];
+
+          //cout << "L" << endl;
+          //cout << point0[0] << ", " << point0[1] << endl;
+          //cout << point1[0] << ", " << point1[1] << endl;
+          //cout << endl;
+        }
+        else if (strcmp(lineType, "Z") == 0) {
+          float point0[2] = {};
+          point0[0] = previousEndPoint[0];
+          point0[1] = previousEndPoint[1];
+          float point1[2] = {};
+          point1[0] = startPos[0];
+          point1[1] = startPos[1];
+
+          float middle1[2] = {};
+          float middle2[2] = {};
+
+          middle1[0] = point0[0] * 0.75 + point1[0] * 0.25;
+          middle1[1] = point0[1] * 0.75 + point1[1] * 0.25;
+
+          middle2[0] = point0[0] * 0.25 + point1[0] * 0.75;
+          middle2[1] = point0[1] * 0.25 + point1[1] * 0.75;
+
+          // middle1[1] = middle1[1] + initialTranslate;
+          // middle2[1] = middle2[1] + initialTranslate;
+          // point1[1] = point1[1] + initialTranslate;
+
+          points.push_back(point0[0]);
+          points.push_back(point0[1]);
+          points.push_back(middle1[0]);
+          points.push_back(middle1[1]);
+          points.push_back(middle2[0]);
+          points.push_back(middle2[1]);
+          points.push_back(point1[0]);
+          points.push_back(point1[1]);
+
+          //cout << "Z" << endl;
+          //cout << point0[0] << ", " << point0[1] << endl;
+          //cout << point1[0] << ", " << point1[1] << endl;
+          //cout << endl;
+        }
+      }
+
+      fclose(file);
+      initialTranslate = initialTranslate + translateDistance;
     }
+
+    VertexArray va(points.size() / 2);
+
+    va.addBuffer("v", 0, points);
+
+    return va;
+  }
 };
 
 void render(Program &program, VertexArray &va)
@@ -350,6 +437,18 @@ void render(Program &program, VertexArray &va)
 	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glHint (GL_LINE_SMOOTH_HINT, GL_DONT_CARE);
 
+  glm::mat4 identity = glm::mat4(1.0f);
+  glm::vec3 scaleVector = glm::vec3(0.5f, 0.5f, 0.0f);
+  glm::vec3 translateVector = glm::vec3(0.5f, 0.5f, 0.0f);
+
+  glm::mat4 scaleMatrix = glm::scale(identity, scaleVector);
+  glm::mat4 translateMatrix = glm::translate(identity, translateVector);
+
+  GLuint s_handle = glGetUniformLocation(program.id, "S");
+  GLuint t_handle = glGetUniformLocation(program.id, "T");
+  glUniformMatrix4fv(s_handle, 1, GL_FALSE, &scaleMatrix[0][0]);
+  glUniformMatrix4fv(t_handle, 1, GL_FALSE, &translateMatrix[0][0]);
+
 
 	glUseProgram(program.id);
 	glBindVertexArray(va.id);
@@ -361,6 +460,11 @@ void render(Program &program, VertexArray &va)
 	glUseProgram(0);
 
 }
+
+float scalingFactor = 3.0f;
+float translationFactor = 0.0f;
+
+
 
 int main(int argc, char *argv[])
 {
@@ -380,7 +484,7 @@ int main(int argc, char *argv[])
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-	window = glfwCreateWindow(512, 512, "CPSC 453 OpenGL Tessellation Boilerplate", 0, 0);
+	window = glfwCreateWindow(768, 768, "CPSC 453 OpenGL Tessellation Boilerplate", 0, 0);
 	if (!window) {
 		cout << "Program failed to create GLFW window, TERMINATING" << endl;
 		glfwTerminate();
@@ -398,15 +502,32 @@ int main(int argc, char *argv[])
   //     1.0,-1.0
   // });
 
-    Loader l("Q");
-    VertexArray va = l.load();
+    Loader l("The quick brown fox jumps over the lazy dog");
+    //Loader l("Hello");
 
+  glfwSetKeyCallback(window,
+    [](GLFWwindow* window, int key, int scancode, int action, int mode){
 
+        //Translation controls
+        if (key == GLFW_KEY_UP && (action == GLFW_PRESS || action == GLFW_REPEAT)) {
+          scalingFactor = scalingFactor + 0.01f;
+        }
+        if (key == GLFW_KEY_DOWN && (action == GLFW_PRESS || action == GLFW_REPEAT)) {
+          scalingFactor = scalingFactor - 0.01f;
+        }
+        if (key == GLFW_KEY_LEFT && (action == GLFW_PRESS || action == GLFW_REPEAT)) {
+          translationFactor = translationFactor - 0.01f;
+        }
+        if (key == GLFW_KEY_RIGHT && (action == GLFW_PRESS || action == GLFW_REPEAT)) {
+          translationFactor = translationFactor + 0.01f;
+        }
+    });
 
 	// run an event-triggered main loop
 	while (!glfwWindowShouldClose(window))
 	{
     // render
+    VertexArray va = l.load(scalingFactor, translationFactor);
 		render(p,va);
 
 		glfwSwapBuffers(window);
